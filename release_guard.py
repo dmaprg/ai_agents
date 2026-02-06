@@ -4,7 +4,6 @@ from google import genai
 
 # 1. Get the Commit Message from the Environment
 commit_message = os.environ.get("COMMIT_MESSAGE", "No message provided")
-
 print(f"🔍 Analyzing commit: '{commit_message}'")
 
 # 2. Connect to Gemini (Key comes from GitHub Secrets)
@@ -24,7 +23,6 @@ try:
     Reply with ONLY the word "PASS" or "FAIL", followed by a short reason.
     Example: FAIL: Too vague.
     """
-    
     response = client.models.generate_content(
         model="gemini-2.0-flash-lite-001",
         contents=prompt
