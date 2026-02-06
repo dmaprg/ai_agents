@@ -1,0 +1,6 @@
+{
+  "JIRA-101": {"status": "Closed", "summary": "Fix login page crash"},
+  "JIRA-102": {"status": "Closed", "summary": "Update CSS colors"},
+  "JIRA-103": {"status": "In Progress", "summary": "Add payment gateway"},
+  "JIRA-104": {"status": "Open", "summary": "Investigate memory leak"}
+}

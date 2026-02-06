@@ -1,31 +1,47 @@
 name: AI Release Governance
 
-# Trigger: Run this whenever code is pushed
 on: [push]
 
 jobs:
-  ai-check:
+  release-pipeline:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write  # Need permission to commit the new Release Note file
+
     steps:
-      # 1. Download the code to the runner
       - name: Checkout Code
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 0 # Important: Fetch full history for git log
 
-      # 2. Install Python
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
 
-      # 3. Install Google GenAI SDK
       - name: Install Dependencies
         run: pip install google-genai
 
-      # 4. Run the AI Script
-      - name: 🛑 Run AI Gatekeeper
+      # --- AGENT 1: The Gatekeeper (Your existing check) ---
+      - name: 🛡️ Run Governance Gatekeeper
         env:
-          # Pass the Secret from GitHub to the Script
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          # Pass the actual commit message automatically
           COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
         run: python release_guard.py
+
+      # --- AGENT 2: The Scribe (Generate Notes) ---
+      - name: 📝 Run Release Scribe
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: python agent_release_scribe.py
+
+      # --- AGENT 3: The Auditor (Check Jira) ---
+      - name: 🕵️ Run Jira Auditor
+        run: python agent_jira_auditor.py
+
+      # --- BONUS: Upload the Notes to the Run Summary ---
+      - name: Upload Release Notes
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-notes
+          path: RELEASE_NOTES.md
