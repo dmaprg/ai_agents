@@ -33,7 +33,7 @@ try:
     
     YOUR INSTRUCTIONS:
     Analyze the commit message strictly against the following POLICY rules.
-    If ANY rule is violated, you must FAIL the release .
+    If ANY rule is violated, you must FAIL the release.
     
     === POLICY START ===
     {policy_content}
