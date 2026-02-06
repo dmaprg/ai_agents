@@ -1,28 +1,49 @@
 import os
 import sys
+import datetime
 from google import genai
 
-# 1. Get the Commit Message from the Environment
+# 1. Get the Commit Message & Current Day
 commit_message = os.environ.get("COMMIT_MESSAGE", "No message provided")
-print(f"🔍 Analyzing commit: '{commit_message}'")
+current_day = datetime.datetime.now().strftime("%A")
 
-# 2. Connect to Gemini (Key comes from GitHub Secrets)
+print(f"🔍 Analyzing commit: '{commit_message}'")
+print(f"📅 Current Day: {current_day}")
+
+# 2. Load the Policy as Code
+try:
+    with open("release_policy.md", "r") as f:
+        policy_content = f.read()
+    print("📜 Policy loaded successfully.")
+except FileNotFoundError:
+    print("❌ Critical Error: release_policy.md not found!")
+    sys.exit(1)
+
+# 3. Connect to Gemini
 try:
     client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
     
-    # 3. Ask the "Gatekeeper" Question
+    # 4. The Dynamic Prompt
     prompt = f"""
-    You are a Release Governance Bot.
-    Analyze this commit message: "{commit_message}"
+    You are a Release Governance Officer.
     
-    Rules:
-    1. It must be descriptive (more than 2 words).
-    2. It must not contain profanity.
-    3. It should sound professional.
+    CONTEXT:
+    - Today is: {current_day}
+    - Commit Message: "{commit_message}"
     
-    Reply with ONLY the word "PASS" or "FAIL", followed by a short reason.
-    Example: FAIL: Too vague.
+    YOUR INSTRUCTIONS:
+    Analyze the commit message strictly against the following POLICY rules.
+    If ANY rule is violated, you must FAIL the release.
+    
+    === POLICY START ===
+    {policy_content}
+    === POLICY END ===
+    
+    OUTPUT FORMAT:
+    Reply with ONLY the word "PASS" or "FAIL", followed by the specific rule violated (if any).
+    Example: FAIL: Missing Ticket ID.
     """
+    
     response = client.models.generate_content(
         model="gemini-2.0-flash-lite-001",
         contents=prompt
@@ -30,14 +51,13 @@ try:
     result = response.text.strip()
     print(f"🤖 AI Verdict: {result}")
 
-    # 4. Enforce the Decision
     if result.startswith("PASS"):
         print("✅ Release Approved.")
-        sys.exit(0)  # Success exit code
+        sys.exit(0)
     else:
         print("❌ Release Blocked by Governance Policy.")
-        sys.exit(1)  # Failure exit code (Kills the pipeline)
+        sys.exit(1)
 
 except Exception as e:
     print(f"Error calling AI: {e}")
-    sys.exit(1) # Fail safe
+    sys.exit(1)
