@@ -3,16 +3,14 @@ name: AI Release Governance
 on: [push]
 
 jobs:
-  release-pipeline:
+  predictive-release:
     runs-on: ubuntu-latest
     permissions:
-      contents: write  # Need permission to commit the new Release Note file
+      contents: write # To save the Release Notes
 
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
-        with:
-          fetch-depth: 0 # Important: Fetch full history for git log
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -22,26 +20,24 @@ jobs:
       - name: Install Dependencies
         run: pip install google-genai
 
-      # --- AGENT 1: The Gatekeeper (Your existing check) ---
-      - name: 🛡️ Run Governance Gatekeeper
-        env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
-        run: python release_guard.py
-
-      # --- AGENT 2: The Scribe (Generate Notes) ---
+      # AGENT 1: Generate Notes from Jira DB (If missing)
       - name: 📝 Run Release Scribe
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: python agent_release_scribe.py
 
-      # --- AGENT 3: The Auditor (Check Jira) ---
-      - name: 🕵️ Run Jira Auditor
-        run: python agent_jira_auditor.py
+      # AGENT 2: Analyze Risks
+      - name: 🧠 Run Risk Analyst Agent
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: python agent_risk_analyst.py
 
-      # --- BONUS: Upload the Notes to the Run Summary ---
-      - name: Upload Release Notes
+      # UPLOAD ARTIFACTS (Always run this, even if Agent 2 fails)
+      - name: Upload Release Artifacts
+        if: always() 
         uses: actions/upload-artifact@v4
         with:
-          name: release-notes
-          path: RELEASE_NOTES.md
+          name: release-reports
+          path: |
+            RELEASE_NOTES.md
+            BLOCKER_ANALYSIS.md
