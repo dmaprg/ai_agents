@@ -1,4 +1,5 @@
 name: 3-Stage AI Governance Pipeline
+
 on: [push]
 
 jobs:
@@ -8,7 +9,7 @@ jobs:
       contents: write # Needed for Agent 2 to save Release Notes
 
     steps:
-      # --- SETUP PHASE ---
+      # --- SETUP ---
       - name: Checkout Code
         uses: actions/checkout@v3
 
@@ -20,31 +21,29 @@ jobs:
       - name: Install Dependencies
         run: pip install google-genai
 
-      # --- AGENT 1: The Input Gatekeeper ---
-      # Blocks the pipeline immediately if the commit message is bad.
-      - name: 🛡️ [Agent 1] Commit Governance
+      # --- AGENT 1: Policy Enforcement ---
+      # This script now reads 'release_policy.md' from the repo
+      - name: 🛡️ [Agent 1] Policy & Input Governance
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
         run: python release_guard.py
 
-      # --- AGENT 2: The Documentation Scribe ---
-      # Reads Jira DB and writes the Release Notes file (if missing).
+      # --- AGENT 2: Documentation Scribe ---
+      # Generates notes based on Jira DB
       - name: 📝 [Agent 2] Release Note Generator
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: python agent_release_scribe.py
 
-      # --- AGENT 3: The Risk Analyst ---
-      # Reads the Release Notes, checks Jira status, and performs Risk Analysis.
-      # Fails the build if open tickets are found.
+      # --- AGENT 3: Risk Analyst ---
+      # Audits status and predicts resource needs
       - name: 🧠 [Agent 3] Risk & Dependency Analyst
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: python agent_risk_analyst.py
 
-      # --- REPORTING PHASE ---
-      # Always upload reports, even if Agent 3 fails the build (so you can see why).
+      # --- REPORTING ---
       - name: Upload Governance Artifacts
         if: always() 
         uses: actions/upload-artifact@v4
