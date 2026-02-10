@@ -1,11 +1,12 @@
 name: 3-Stage AI Governance Pipeline
+
 on: [push]
 
 jobs:
   governance-pipeline:
     runs-on: ubuntu-latest
     permissions:
-      contents: write 
+      contents: write  # <--- CRITICAL: Allows the bot to push commits
 
     steps:
       # --- SETUP ---
@@ -28,30 +29,47 @@ jobs:
         run: python release_guard.py
 
       # --- AGENT 2: Documentation Scribe ---
-      # We use 'continue-on-error' here just in case API fails, 
-      # so Agent 3 can still try to run (though it might fail too).
       - name: 📝 [Agent 2] Release Note Generator
         id: scribe
-        continue-on-error: true 
+        continue-on-error: true
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: python agent_release_scribe.py
 
       # --- AGENT 3: Risk Analyst ---
-      # This is the GATEKEEPER. If this fails, the build turns RED.
       - name: 🧠 [Agent 3] Risk & Dependency Analyst
         id: analyst
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: python agent_risk_analyst.py
 
-      # --- REPORTING (Run even if Agent 3 failed) ---
-      - name: Upload Governance Artifacts
-        if: always()  # Runs even if previous steps failed
-        uses: actions/upload-artifact@v4
-        with:
-          name: governance-reports
-          path: |
-            RELEASE_NOTES.md
-            BLOCKER_ANALYSIS.md
-          if-no-files-found: warn # Don't crash if files are missing
+      # --- REPORTING PHASE (Commit to Repo) ---
+      - name: 💾 Commit Reports to Repo
+        if: always()  # Run even if Agent 3 failed (Blocked Release)
+        run: |
+          # 1. Configure Git User for the Bot
+          git config --global user.name "AI Governance Bot"
+          git config --global user.email "bot@noreply.github.com"
+          
+          # 2. Create Dynamic Folder Name (Year-Month-Day-RunNumber)
+          # Example: reports/2026-02-10-run-45
+          REPORT_DATE=$(date +'%Y-%m-%d')
+          REPORT_DIR="reports/$REPORT_DATE-run-${{ github.run_number }}"
+          
+          mkdir -p $REPORT_DIR
+          echo "📂 Created directory: $REPORT_DIR"
+
+          # 3. Move Generated Files (If they exist)
+          [ -f RELEASE_NOTES.md ] && mv RELEASE_NOTES.md $REPORT_DIR/
+          [ -f BLOCKER_ANALYSIS.md ] && mv BLOCKER_ANALYSIS.md $REPORT_DIR/
+          
+          # 4. Check if folder is empty (If Agent 1 failed, no reports exist)
+          if [ -z "$(ls -A $REPORT_DIR)" ]; then
+             echo "⚠️ No reports generated to commit."
+             exit 0
+          fi
+          
+          # 5. Commit and Push
+          git add $REPORT_DIR
+          git commit -m "📝 Add Governance Reports for Run ${{ github.run_number }}"
+          git push
