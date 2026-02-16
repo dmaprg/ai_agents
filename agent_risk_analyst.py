@@ -11,7 +11,7 @@ try:
     with open("RELEASE_NOTES.md", "r") as f:
         notes_content = f.read()
 except FileNotFoundError:
-    print("❌ Critical Files Missing.")
+    print("Critical Files Missing.")
     sys.exit(1)
 
 # 2. Extract Tickets from Notes
@@ -27,11 +27,11 @@ for ticket in mentioned_tickets:
         blocked_tickets.append(f"{ticket} ({info['status']}): {info['summary']}")
 
 if not blocked_tickets:
-    print("✅ All tickets are closed. Release Approved.")
+    print("All tickets are closed. Release Approved.")
     sys.exit(0)
 
 # 4. AI Risk Analysis
-print(f"⚠️ Found {len(blocked_tickets)} blocked tickets. engaging Risk Analyst AI...")
+print(f"Found {len(blocked_tickets)} blocked tickets. engaging Risk Analyst AI...")
 
 client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
 prompt = f"""
@@ -58,9 +58,9 @@ response = client.models.generate_content(
 # 5. Output the Report and Fail the Pipeline
 report_file = "BLOCKER_ANALYSIS.md"
 with open(report_file, "w") as f:
-    f.write(f"# 🚨 Release Governance Blocked\n\n")
+    f.write(f"!!! Release Governance Blocked\n\n")
     f.write(response.text)
 
-print(f"\n❌ Release Blocked. Analysis saved to {report_file}")
+print(f"\n!Release Blocked. Analysis saved to {report_file}")
 print(response.text)
 sys.exit(1) # Fail the pipeline
